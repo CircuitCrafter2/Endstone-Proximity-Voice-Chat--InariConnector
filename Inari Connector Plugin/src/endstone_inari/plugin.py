@@ -1,10 +1,14 @@
 """Plugin Endstone Inari : chat vocal de proximité (connecteur WebSocket)."""
 
 import os
-import traceback
 import threading
-from packaging.version import parse as parse_version
+import traceback
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as package_version
+
 import requests
+from packaging.version import InvalidVersion
+from packaging.version import parse as parse_version
 
 from endstone.command import Command, CommandSender
 from endstone.plugin import Plugin
@@ -197,31 +201,57 @@ class InariPlugin(Plugin):
         self.server.scheduler.run_task(self, self.connector.tick, delay=0, period=6)
 
         self.logger.info("Inari enabled!")
-        threading.Thread(target=self.check_for_updates).start()
+
+        threading.Thread(target=self.check_for_updates, name="inari-update-check", daemon=True).start()
+
+    def _current_version(self):
+        """Version du plugin : celle d'Endstone si elle existe, sinon celle du paquet."""
+        version = getattr(self, "version", None)
+        if version:
+            return str(version)
+        try:
+            return package_version("endstone-inari")
+        except PackageNotFoundError:
+            return None
 
     def check_for_updates(self):
         try:
+            current_version = self._current_version()
+            if current_version is None:
+                self.logger.warning("Unable to determine the plugin version, update check skipped")
+                return
+
             repo_url = (
-            "https://api.github.com/repos/CircuitCrafter2/Endstone-Proximity-Voice-Chat--InariConnector/releases/latest"
+                "https://api.github.com/repos/CircuitCrafter2/Endstone-Proximity-Voice-Chat--InariConnector/releases/latest"
             )
             response = requests.get(repo_url, timeout=5)
 
-            if response.status_code == 200:
-                data = response.json()
-                latest_tag = data.get(
-                    "tag_name"
-                )
-                latest_version = latest_tag.lstrip(
-                    "v"
-                )
-
-                if parse_version(latest_version) > parse_version(self.version):
-                    self.logger.warning(f"A new version is available: {latest_version} (Current: {self.version})")
-                    self.logger.warning(f"You can download it here: {data.get('html_url')}")
-                else:
-                    self.logger.info(f"Your plugin is up to date (version {self.version}).")
-            else:
+            if response.status_code != 200:
                 self.logger.error(f"Unable to check for updates (HTTP Code: {response.status_code})")
+                return
+
+            data = response.json()
+            latest_tag = data.get("tag_name")
+            if not latest_tag:
+                self.logger.warning("The latest GitHub release has no tag name, update check skipped")
+                return
+
+            # Tag non standard (ex: "release-final") : on ignore au lieu de lever une erreur
+            latest_version = str(latest_tag).strip().lstrip("vV")
+            try:
+                latest = parse_version(latest_version)
+                current = parse_version(current_version)
+            except InvalidVersion:
+                self.logger.warning(
+                    f"Cannot compare versions (release tag: '{latest_tag}', current: '{current_version}'), update check skipped"
+                )
+                return
+
+            if latest > current:
+                self.logger.warning(f"A new version is available: {latest_version} (Current: {current_version})")
+                self.logger.warning(f"You can download it here: {data.get('html_url')}")
+            else:
+                self.logger.info(f"Your plugin is up to date (version {current_version}).")
         except Exception as e:
             self.logger.error(f"Error checking for update: {e}")
 
