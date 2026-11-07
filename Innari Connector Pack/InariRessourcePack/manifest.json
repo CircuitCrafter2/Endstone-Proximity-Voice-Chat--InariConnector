@@ -1,0 +1,22 @@
+{
+  "format_version": 2,
+  "header": {
+    "name": "Inari Ressource Pack",
+    "description": "Ressource Pack for Endstone Inari Connector",
+    "uuid": "e2eb5209-8e47-44dc-b68e-f9b020d4fffb",
+    "version": [1, 0, 0],
+    "min_engine_version": [1, 21, 0]
+  },
+  "modules": [
+    {
+      "type": "resources",
+      "description": "Inari Ressource Pack",
+      "uuid": "38ad2829-ff9a-4f26-b9c5-6154c22f89a2",
+      "version": [
+        1,
+        1,
+        0
+      ]
+    }
+  ]
+}

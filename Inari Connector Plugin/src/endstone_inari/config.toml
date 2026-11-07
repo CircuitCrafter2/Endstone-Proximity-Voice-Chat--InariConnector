@@ -1,0 +1,12 @@
+# true : enregistre tous les messages envoyés/reçus (bruts) dans plugins/Inari/debug.txt
+# Attention : le fichier contient la clé API (message d'authentification).
+debug = false
+
+[connection]
+url = "wss://inari.yourserver.com/ws"
+api_key = ""
+channel = "default"
+
+[clients]
+code_length = 8
+connect_url = "https://inari.yourserver.com/"

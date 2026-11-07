@@ -1,0 +1,21 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "endstone-inari"
+version = "0.0.4"
+dependencies = ["websockets>=12"]
+authors = [
+    { name = "CircuitCrafter", email = "circuitcrafter2@outlook.com" },
+]
+description = "A proximity voice chat for endstone. [Inari Connector]"
+readme = "README.md"
+keywords = ["endstone", "plugin", "proximity", "voice"]
+requires-python = ">=3.10"
+
+[project.optional-dependencies]
+dev = ["ruff"]
+
+[project.entry-points."endstone"]
+inari = "endstone_inari:InariPlugin"
