@@ -31,10 +31,10 @@ def execute(sender: CommandSender, args: list[str], data_path: str) -> bool:
     else:
         status = "\n".join([
             f"§bYour Inari Voice Profile (§e{player_config.get('username', sender.name)}§b)",
-            f"Mute status : {mute_state(player_config)}",
-            f"Deafen status : {deafen_state(player_config)}",
-            f"Ban status : {ban_state(player_config)}",
-            f"Active Voice -> Muted: {is_currently_muted} | Deafened: {is_currently_deafened}",
+            f"§rMute status : {mute_state(player_config)}",
+            f"§rDeafen status : {deafen_state(player_config)}",
+            f"§rBan status : {ban_state(player_config)}",
+            f"§rActive Voice -> Muted: {is_currently_muted} | Deafened: {is_currently_deafened}",
         ])
 
     # Les callbacks reçoivent le joueur qui a cliqué ; on les passe par référence
