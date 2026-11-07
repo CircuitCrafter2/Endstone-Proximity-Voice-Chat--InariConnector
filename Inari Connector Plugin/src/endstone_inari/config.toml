@@ -1,5 +1,5 @@
-# true : enregistre tous les messages envoyés/reçus (bruts) dans plugins/Inari/debug.txt
-# Attention : le fichier contient la clé API (message d'authentification).
+# true : logs all raw messages sent/received in plugins/Inari/debug.txt
+# Warning: the file contains the API key (authentication message).
 debug = false
 
 [connection]
