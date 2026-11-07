@@ -1,7 +1,7 @@
 from endstone import Player
 from endstone.command import CommandSender
 
-from ..utils import ban_state, deafen_state, get_player_data, mute_state
+from ..utils import ban_state, deafen_state, get_player_data, mute_state, active_time, last_time
 
 
 def execute(sender: CommandSender, args: list[str], data_path: str) -> bool:
@@ -26,6 +26,7 @@ def execute(sender: CommandSender, args: list[str], data_path: str) -> bool:
     sender.send_message(f"§rDeafen status : {deafen_state(player_config)}")
     sender.send_message(f"§rBan status : {ban_state(player_config)}")
     sender.send_message(f"§rActive Voice -> Muted: {is_currently_muted} §r| Deafened: {is_currently_deafened}")
+    sender.send_message(f"§rActivity time : {active_time(player_config)} (Synchronized on {last_time(player_config)})")
     sender.send_message("--------------------")
 
     return True

@@ -1,56 +1,14 @@
 # Fichier : ws_manager.py
-"""
-Gestionnaire WebSocket pour le connecteur Inari (plugin Endstone).
-
-Utilisation depuis ton plugin (exemple, à adapter) :
-
-    def on_enable(self):
-        ...
-        self.connector = InariConnector(
-            server=self.server,
-            logger=self.logger,
-            data_path=self.data_path,   # dossier où utils.py stocke les <uuid>.json
-            url="wss://inari.example.com/ws",
-            api_key="MA_CLE_API",
-            channel="default",
-        )
-        self.connector.start()          # lance le thread WebSocket
-        # tick() est appelé toutes les 6 ticks (~300 ms à 20 TPS) sur le thread principal
-        self.server.scheduler.run_task(self, self.connector.tick, delay=0, period=6)
-
-    def on_disable(self):
-        self.connector.stop()
-
-Dépendance externe : `websockets` (à déclarer dans les dépendances du plugin).
-
-ARCHITECTURE (deux « mondes » qui ne se touchent jamais directement) :
-
-  Thread principal Endstone                   Thread WebSocket (asyncio)
-  -------------------------                   --------------------------
-  tick() toutes les 300 ms                    _run() / _session()
-   - lit les joueurs + fichiers JSON  ------>  envoie sync_connector_state
-   - construit la liste `clients`      outbox  attend la réponse (transaction_uuid)
-   - applique la réponse `connections` <------ dépose la réponse
-     dans les fichiers JSON             inbox
-
-  => Toute l'API Endstone ET tous les accès fichiers restent sur le thread
-     principal (l'API Endstone n'est pas thread-safe, et ça évite que deux
-     threads écrivent le même fichier JSON en même temps).
-  => Le thread WebSocket ne manipule que du JSON déjà prêt.
-"""
 import asyncio
 import datetime
 import json
 import math
 import queue
+import random
 import threading
 import time
 import uuid
-
 import websockets
-
-# Import relatif : utils.py doit être dans le même package que ce fichier.
-# Si ton projet n'est pas un package, remplace par : import utils
 from . import utils
 
 
@@ -69,6 +27,11 @@ class InariConnector:
     # on les filtre côté plugin pour ne pas faire échouer toute la synchro.
     MIN_CODE_LENGTH = utils.MIN_CODE_LENGTH
 
+    # Statistiques : secondes d'absence tolérées avant de considérer qu'une session
+    # Inari est terminée (évite de couper en deux sur un rafraîchissement de page
+    # ou un sync raté).
+    GRACE = 15
+
     def __init__(self, server, logger, data_path, url, api_key, channel="default", debug_file=None):
         self.server = server
         self.logger = logger
@@ -76,6 +39,10 @@ class InariConnector:
         self.url = url
         self.api_key = api_key
         self.channel = channel
+
+        # ---- Suivi des sessions Inari (thread principal uniquement) ----
+        # uuid -> {"id": str, "start": timestamp, "last_seen": timestamp}
+        self._sessions = {}
 
         # ---- Mode debug : chemin du fichier où écrire le trafic brut (None = désactivé) ----
         self.debug_file = debug_file
@@ -122,6 +89,11 @@ class InariConnector:
 
     def stop(self):
         """Arrête proprement le thread WebSocket (à appeler dans on_disable)."""
+        # Sessions encore ouvertes : on les enregistre, sinon leur temps serait perdu.
+        for uuid_str, session in list(self._sessions.items()):
+            self._close_session(uuid_str, session)
+        self._sessions.clear()
+
         self.connected = False
         loop, task = self._loop, self._main_task
         # La boucle peut déjà être fermée (ex: clé API rejetée => _run s'est terminé).
@@ -274,12 +246,14 @@ class InariConnector:
                 self._consume_toggles(uuid_str, sent)
 
             code_to_uuid = context["code_to_uuid"]
+            present = set()  # joueurs connectés à Inari d'après CETTE réponse
             for conn in connections:
                 if conn.get("is_connector"):
                     continue  # on ne s'intéresse qu'aux joueurs
                 uuid_str = code_to_uuid.get(conn.get("code"))
                 if uuid_str is None:
                     continue  # connecté à Inari mais pas (ou plus) en jeu
+                present.add(uuid_str)
 
                 # Inari est la source de vérité de l'état : on le recopie dans "state".
                 new_state = {
@@ -291,6 +265,80 @@ class InariConnector:
                 # (sinon on réécrirait le fichier toutes les 300 ms).
                 if data is not None and data.get("state") != new_state:
                     utils.update_player_data(self.data_path, uuid_str, "state", new_state)
+
+            # Appelé même si `present` est vide : c'est ce qui permet de fermer
+            # les sessions des joueurs qui ont quitté Inari.
+            self._update_statistics(present, time.time())
+
+    # ---------------------------------------------------------------------
+    # STATISTIQUES : temps connecté à Inari (thread principal)
+    # ---------------------------------------------------------------------
+
+    def _update_statistics(self, present, now):
+        """Ouvre, rafraîchit ou ferme les sessions selon les joueurs présents."""
+        # 1) Joueurs présents : ouvrir une session ou la rafraîchir
+        for uuid_str in present:
+            session = self._sessions.get(uuid_str)
+
+            # Trop longtemps sans nouvelle (panne, timeouts...) : on clôt l'ancienne
+            # session à son dernier moment confirmé, et on en ouvre une nouvelle.
+            if session is not None and now - session["last_seen"] > self.GRACE:
+                self._close_session(uuid_str, session)
+                session = None
+
+            if session is None:
+                self._sessions[uuid_str] = {
+                    "id": self._new_session_id(uuid_str),
+                    "start": now,
+                    "last_seen": now,
+                }
+            else:
+                session["last_seen"] = now
+
+        # 2) Joueurs absents depuis plus que le délai de grâce : fermer la session
+        for uuid_str, session in list(self._sessions.items()):  # list() : on supprime en parcourant
+            if uuid_str not in present and now - session["last_seen"] > self.GRACE:
+                self._close_session(uuid_str, session)
+                del self._sessions[uuid_str]
+
+    def _new_session_id(self, uuid_str):
+        """Identifiant aléatoire à 15 chiffres, absent de l'historique du joueur."""
+        data = utils.get_player_data(self.data_path, uuid_str) or {}
+        history = (data.get("statistics") or {}).get("session_history") or {}
+        while True:
+            session_id = str(random.randrange(10**14, 10**15))  # toujours 15 chiffres
+            if session_id not in history:
+                return session_id
+
+    def _close_session(self, uuid_str, session):
+        """Enregistre la session terminée dans le JSON du joueur."""
+        data = utils.get_player_data(self.data_path, uuid_str)
+        if data is None:
+            return
+
+        stats = data.get("statistics")
+        if not isinstance(stats, dict):
+            stats = {}
+        history = stats.get("session_history")
+        if not isinstance(history, dict):
+            history = {}
+
+        # La fin est le DERNIER moment où le joueur était vu, pas l'heure de la détection.
+        duration = int(session["last_seen"] - session["start"])
+
+        stats["total_time"] = int(stats.get("total_time", 0)) + duration
+        history[session["id"]] = {
+            "start_time": self._fmt(session["start"]),
+            "end_time": self._fmt(session["last_seen"]),
+        }
+        stats["session_history"] = history
+
+        # On réécrit tout le bloc : update_player_data remplace la valeur de la clé.
+        utils.update_player_data(self.data_path, uuid_str, "statistics", stats)
+
+    @staticmethod
+    def _fmt(timestamp):
+        return time.strftime("%d/%m/%Y %H:%M:%S", time.localtime(timestamp))
 
     def _consume_toggles(self, uuid_str, sent):
         """Remet à false les demandes de bascule qui viennent d'être envoyées."""

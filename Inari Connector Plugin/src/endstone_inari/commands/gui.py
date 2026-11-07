@@ -2,7 +2,7 @@ from endstone import Player
 from endstone.command import CommandSender
 from endstone.form import ActionForm, Button, Divider
 
-from ..utils import ban_state, deafen_state, get_player_data, mute_state
+from ..utils import ban_state, deafen_state, get_player_data, mute_state, last_time, active_time
 from . import deafen, mute, pair
 
 
@@ -35,6 +35,7 @@ def execute(sender: CommandSender, args: list[str], data_path: str) -> bool:
             f"§rDeafen status : {deafen_state(player_config)}",
             f"§rBan status : {ban_state(player_config)}",
             f"§rActive Voice -> Muted: {is_currently_muted} | Deafened: {is_currently_deafened}",
+            f"§rActivity time : {active_time(player_config)} (Synchronized on {last_time(player_config)})",
         ])
 
     # Les callbacks reçoivent le joueur qui a cliqué ; on les passe par référence

@@ -7,6 +7,7 @@ import re
 import secrets
 import string
 import uuid
+from datetime import datetime
 
 logger = logging.getLogger("endstone_inari")
 
@@ -194,6 +195,10 @@ def _default_data(username: str, uuid_str: str) -> dict:
             "mute": False,
             "deafen": False,
         },
+        "statistics": {
+            "total_time": 0,
+            "session_history": {}
+        }
     }
 
 
@@ -311,3 +316,50 @@ def deafen_state(config_data: dict) -> str:
 
 def ban_state(config_data: dict) -> str:
     return _describe_state(config_data, "is_ban", "end_ban", "Banned")
+
+def active_time(config_data: dict) -> str:
+    """Temps total actif sur Inari, ex: '1d 2h 5m 3s'."""
+    statistics = config_data.get("statistics") or {}
+    total = statistics.get("total_time", 0)
+
+    # Sécurité : valeur absente, négative ou d'un mauvais type
+    if isinstance(total, bool) or not isinstance(total, (int, float)):
+        total = 0
+    total = max(int(total), 0)
+
+    days, rest = divmod(total, 86400)
+    hours, rest = divmod(rest, 3600)
+    minutes, seconds = divmod(rest, 60)
+
+    parts = []
+    if days:
+        parts.append(f"{days}d")
+    if hours or days:
+        parts.append(f"{hours}h")
+    if minutes or hours or days:
+        parts.append(f"{minutes}m")
+    parts.append(f"{seconds}s")
+    return " ".join(parts)
+
+
+def last_time(config_data: dict) -> str:
+    """Date de fin de la dernière session, ou 'Never' s'il n'y en a pas."""
+    statistics = config_data.get("statistics") or {}
+    history = statistics.get("session_history") or {}
+
+    last_date = None
+    last_text = None
+
+    for session in history.values():
+        if not isinstance(session, dict):
+            continue
+        end_text = session.get("end_time")
+        try:
+            end_date = datetime.strptime(end_text, "%d/%m/%Y %H:%M:%S")
+        except (TypeError, ValueError):
+            continue   # entrée absente ou mal formée : on l'ignore
+
+        if last_date is None or end_date > last_date:
+            last_date, last_text = end_date, end_text
+
+    return last_text if last_text else "Never"
