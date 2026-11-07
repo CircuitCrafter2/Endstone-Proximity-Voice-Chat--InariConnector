@@ -63,8 +63,7 @@ class InariPlugin(Plugin):
             "usages": [
                 "/inari",
                 "/inari (info|gui|pair|mute|deafen)<action: string>",
-                "/inari staff (info|mute|deafen|ban)<subaction: string> <target: target>",
-                "/inari staff (tempmute|tempdeafen|tempban)<subaction: string> <target: target> <duration: string>",
+                "/inari staff (info|mute|deafen|ban|tempmute|tempdeafen|tempban)<subaction: string> <target: target> [duration: string]",
                 ],
             "permissions": ["inari.command.inari"],
             "aliases": ["vocal", "voice"],
