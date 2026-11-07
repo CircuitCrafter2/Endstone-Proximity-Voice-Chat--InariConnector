@@ -2,6 +2,9 @@
 
 import os
 import traceback
+import threading
+from packaging.version import parse as parse_version
+import requests
 
 from endstone.command import Command, CommandSender
 from endstone.plugin import Plugin
@@ -194,6 +197,33 @@ class InariPlugin(Plugin):
         self.server.scheduler.run_task(self, self.connector.tick, delay=0, period=6)
 
         self.logger.info("Inari enabled!")
+        threading.Thread(target=self.check_for_updates).start()
+
+    def check_for_updates(self):
+        try:
+            repo_url = (
+            "https://api.github.com/repos/CircuitCrafter2/Endstone-Proximity-Voice-Chat--InariConnector/releases/latest"
+            )
+            response = requests.get(repo_url, timeout=5)
+
+            if response.status_code == 200:
+                data = response.json()
+                latest_tag = data.get(
+                    "tag_name"
+                )
+                latest_version = latest_tag.lstrip(
+                    "v"
+                )
+
+                if parse_version(latest_version) > parse_version(self.version):
+                    self.logger.warning(f"A new version is available: {latest_version} (Current: {self.version})")
+                    self.logger.warning(f"You can download it here: {data.get('html_url')}")
+                else:
+                    self.logger.info(f"Your plugin is up to date (version {self.version}).")
+            else:
+                self.logger.error(f"Unable to check for updates (HTTP Code: {response.status_code})")
+        except Exception as e:
+            self.logger.error(f"Error checking for update: {e}")
 
     def on_disable(self) -> None:
         if getattr(self, "connector", None) is not None:
