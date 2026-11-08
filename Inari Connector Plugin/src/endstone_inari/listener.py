@@ -9,7 +9,7 @@ from endstone.event import EventPriority, PlayerJoinEvent, PlayerQuitEvent, even
 from endstone.plugin import Plugin
 
 from .utils import forget_player, init_player_file
-
+from .commands.staff import spy as staff_spy
 
 class InariListener:
     def __init__(self, plugin: Plugin) -> None:
@@ -23,4 +23,5 @@ class InariListener:
     @event_handler
     def on_player_quit(self, event: PlayerQuitEvent) -> None:
         """Libère le cache mémoire du joueur qui quitte le serveur."""
+        staff_spy.handle_quit(self._plugin.data_path, self._plugin.server, event.player)
         forget_player(event.player)

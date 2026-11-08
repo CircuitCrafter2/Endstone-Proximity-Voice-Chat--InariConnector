@@ -26,6 +26,7 @@ from .commands.staff import mute as staff_mute
 from .commands.staff import tempban as staff_tempban
 from .commands.staff import tempdeafen as staff_tempdeafen
 from .commands.staff import tempmute as staff_tempmute
+from .commands.staff import spy as staff_spy
 from .listener import InariListener
 from .wsmanager import InariConnector
 
@@ -47,6 +48,7 @@ STAFF_ACTIONS = {
     "tempmute": staff_tempmute.execute,
     "tempdeafen": staff_tempdeafen.execute,
     "tempban": staff_tempban.execute,
+    "spy": staff_spy.execute,
 }
 
 
@@ -70,7 +72,7 @@ class InariPlugin(Plugin):
             "usages": [
                 "/inari",
                 "/inari (info|gui|pair|mute|deafen)<action: string>",
-                "/inari staff (info|mute|deafen|ban|tempmute|tempdeafen|tempban)<subaction: string> <target: target> [duration: string]",
+                "/inari staff (info|mute|deafen|ban|tempmute|tempdeafen|tempban|spy)<subaction: string> <target: target> [duration: string]",
                 ],
             "permissions": ["inari.command.inari"],
             "aliases": ["vocal", "voice"],
@@ -130,6 +132,7 @@ class InariPlugin(Plugin):
                 "inari.command.staff.tempmute": True,
                 "inari.command.staff.tempdeafen": True,
                 "inari.command.staff.tempban": True,
+                "inari.command.staff.spy": True,
             },
         },
         "inari.command.staff.mute": {
@@ -156,6 +159,10 @@ class InariPlugin(Plugin):
             "description": "Allow users to temporarily ban another.",
             "default": "op",
         },
+        "inari.command.staff.spy": {
+            "description": "Allow users to spy another.",
+            "default": "op",
+        },        
     }
 
 
@@ -201,7 +208,6 @@ class InariPlugin(Plugin):
         self.server.scheduler.run_task(self, self.connector.tick, delay=0, period=6)
 
         self.logger.info("Inari enabled!")
-
         threading.Thread(target=self.check_for_updates, name="inari-update-check", daemon=True).start()
 
     def _current_version(self):
@@ -256,6 +262,7 @@ class InariPlugin(Plugin):
             self.logger.error(f"Error checking for update: {e}")
 
     def on_disable(self) -> None:
+        staff_spy.stop_all(self.data_path)
         if getattr(self, "connector", None) is not None:
             self.connector.stop()
         self.logger.info("Inari disabled!")

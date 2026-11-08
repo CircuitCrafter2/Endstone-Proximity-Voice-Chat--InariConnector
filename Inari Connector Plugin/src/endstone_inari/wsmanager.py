@@ -168,7 +168,11 @@ class InariConnector:
         code_to_uuid = {}
         toggles = {}
 
-        for player in self.server.online_players:
+        # Index uuid -> joueur en ligne : sert à retrouver le joueur surveillé (spy).
+        online_players = list(self.server.online_players)
+        online_by_uuid = {utils.get_uuid_string(p): p for p in online_players}
+
+        for player in online_players:
             # Lecture du fichier <uuid>.json géré par utils.py
             data = utils.get_player_data(self.data_path, player)
             if data is None:
@@ -191,6 +195,13 @@ class InariConnector:
                 uuid_str, data, "is_force_muted", "end_force_muted"
             )
 
+            # Mode spy : un membre du staff qui en surveille un autre est TOUJOURS muet
+            # (sans rien écrire dans son fichier : ce mute forcé n'est pas persistant).
+            spy_target_uuid = self._spy_target(data, uuid_str)
+            spying = spy_target_uuid is not None
+            if spying:
+                force_muted = True
+
             # Sourdine forcée (état persistant, même logique que le mute forcé).
             # Requis par les serveurs Inari "nightly" (sans valeur par défaut) et
             # simplement ignoré par les serveurs "stable" : on l'envoie donc toujours.
@@ -209,10 +220,21 @@ class InariConnector:
                 toggles[uuid_str] = {"mute": toggle_muted, "deafen": toggle_deafened}
 
             loc = player.location
+            position = [loc.x, loc.y, loc.z]
+
+            # Mode spy : le surveillant est placé sur le joueur surveillé (Y - 1 pour
+            # éviter les problèmes) : il entend donc ce que celui-ci entend et dit.
+            # Si le joueur surveillé n'est pas en ligne, on garde la position réelle.
+            if spying:
+                target = online_by_uuid.get(spy_target_uuid)
+                if target is not None:
+                    target_loc = target.location
+                    position = [target_loc.x, target_loc.y - 1, target_loc.z]
+
             entry = {
                 "code": code,
                 "display_name": player.name,
-                "position": [loc.x, loc.y, loc.z],
+                "position": position,
                 "head": self._head_vector(loc.yaw, loc.pitch),
                 "is_force_muted": force_muted,
                 "is_force_deafened": force_deafened,
@@ -354,6 +376,23 @@ class InariConnector:
         }
         if request != new_request:
             utils.update_player_data(self.data_path, uuid_str, "request", new_request)
+
+    @staticmethod
+    def _spy_target(data, own_uuid):
+        """UUID du joueur surveillé si ce joueur est en mode spy, sinon None.
+
+        Lit data["staff"]["spy"] = {"active": bool, "target": uuid | None}.
+        Un joueur ne peut pas se surveiller lui-même.
+        """
+        staff = data.get("staff")
+        spy = staff.get("spy") if isinstance(staff, dict) else None
+        if not isinstance(spy, dict) or spy.get("active") is not True:
+            return None
+        target = spy.get("target")
+        if not target:
+            return None
+        target = utils.get_uuid_string(target)
+        return None if target == own_uuid else target
 
     def _is_active(self, uuid_str, data, flag_key, end_key):
         """

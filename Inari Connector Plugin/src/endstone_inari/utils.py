@@ -198,6 +198,12 @@ def _default_data(username: str, uuid_str: str) -> dict:
         "statistics": {
             "total_time": 0,
             "session_history": {}
+        },
+        "staff": {
+            "spy": {
+                "active": False,
+                "target": None,
+            }
         }
     }
 
@@ -242,6 +248,14 @@ def init_player_file(data_path: str, player):
                     if sub_key not in data[key]:
                         data[key][sub_key] = sub_default
                         changed = True
+
+    # Spy : l'état ne survit pas à une reconnexion (la boss bar est en mémoire seulement)
+    staff = data.get("staff")
+    spy = staff.get("spy") if isinstance(staff, dict) else None
+    if isinstance(spy, dict) and (spy.get("active") or spy.get("target") is not None):
+        spy["active"] = False
+        spy["target"] = None
+        changed = True
 
     if changed:
         save_player_data(data_path, uuid_str, data)
