@@ -58,7 +58,7 @@ class InariPlugin(Plugin):
 
     # Must match the major.minor version of the Endstone API you are targeting.
     api_version = "0.11"
-
+    soft_depend = ["papi"]
     # Commands are declared as a dict. Each key is the command name, and the value
     # configures how it appears in-game. The "permissions" list controls who can use it.
     commands = {
@@ -207,8 +207,30 @@ class InariPlugin(Plugin):
         # tick() runs every 6 ticks (~300 ms at 20 TPS) on the main thread
         self.server.scheduler.run_task(self, self.connector.tick, delay=0, period=6)
 
+        self._register_placeholders()
+
         self.logger.info("Inari enabled!")
         threading.Thread(target=self.check_for_updates, name="inari-update-check", daemon=True).start()
+
+    def _register_placeholders(self) -> None:
+        """Enregistre l'expansion PlaceholderAPI si PAPI est installé (dépendance facultative)."""
+        try:
+            from endstone_papi import PlaceholderAPI  # pyright: ignore[reportMissingImports]
+            from .PlaceholderExpansion import InariExpansion
+        except ImportError:
+            self.logger.info("PlaceholderAPI not found, placeholders are disabled")
+            return
+
+        try:
+            service = PlaceholderAPI.load(self.server.service_manager)
+            if service is None or not service.active:
+                self.logger.info("PlaceholderAPI is not active, placeholders are disabled")
+                return
+            expansion = InariExpansion()
+            expansion.datapath = self.data_path
+            service.register_expansion(self, expansion)
+        except Exception as e:
+            self.logger.warning(f"Could not register the PlaceholderAPI expansion: {e}")
 
     def _current_version(self):
         """Version du plugin : celle d'Endstone si elle existe, sinon celle du paquet."""

@@ -92,6 +92,7 @@ class InariConnector:
         # Sessions encore ouvertes : on les enregistre, sinon leur temps serait perdu.
         for uuid_str, session in list(self._sessions.items()):
             self._close_session(uuid_str, session)
+            self._set_connected(uuid_str, False)
         self._sessions.clear()
 
         self.connected = False
@@ -140,7 +141,12 @@ class InariConnector:
         #    l'instantané dans ces cas-là, car construire = consommer les
         #    demandes de bascule (mute/deafen). Si on les consommait sans envoyer,
         #    elles seraient perdues.
-        if not self.connected or self._busy:
+        if not self.connected:
+            # Plus de liaison avec Inari : aucune réponse n'arrive, donc on laisse
+            # expirer les sessions en cours (et le drapeau state.connected) après GRACE.
+            self._update_statistics(set(), time.time())
+            return
+        if self._busy:
             return
 
         clients, context = self._build_clients()
@@ -281,6 +287,7 @@ class InariConnector:
                 new_state = {
                     "mute": bool(conn.get("is_muted")),
                     "deafen": bool(conn.get("is_deafened")),
+                    "connected": True,
                 }
                 data = utils.get_player_data(self.data_path, uuid_str)
                 # On n'écrit sur le disque que si quelque chose a changé
@@ -321,7 +328,20 @@ class InariConnector:
         for uuid_str, session in list(self._sessions.items()):  # list() : on supprime en parcourant
             if uuid_str not in present and now - session["last_seen"] > self.GRACE:
                 self._close_session(uuid_str, session)
+                self._set_connected(uuid_str, False)
                 del self._sessions[uuid_str]
+
+    def _set_connected(self, uuid_str, value):
+        """Met à jour state.connected (connecté à Inari ou non) dans le JSON du joueur."""
+        data = utils.get_player_data(self.data_path, uuid_str)
+        if data is None:
+            return
+        state = data.get("state")
+        if not isinstance(state, dict):
+            state = {}
+        if state.get("connected") != value:
+            state["connected"] = value
+            utils.update_player_data(self.data_path, uuid_str, "state", state)
 
     def _new_session_id(self, uuid_str):
         """Identifiant aléatoire à 15 chiffres, absent de l'historique du joueur."""

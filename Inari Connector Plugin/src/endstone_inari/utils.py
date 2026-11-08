@@ -7,6 +7,7 @@ import re
 import secrets
 import string
 import uuid
+import time
 from datetime import datetime
 
 logger = logging.getLogger("endstone_inari")
@@ -194,6 +195,7 @@ def _default_data(username: str, uuid_str: str) -> dict:
         "state": {
             "mute": False,
             "deafen": False,
+            "connected": False,
         },
         "statistics": {
             "total_time": 0,
@@ -255,6 +257,11 @@ def init_player_file(data_path: str, player):
     if isinstance(spy, dict) and (spy.get("active") or spy.get("target") is not None):
         spy["active"] = False
         spy["target"] = None
+        changed = True
+
+    state = data.get("state")
+    if isinstance(state, dict) and state.get("connected"):
+        state["connected"] = False
         changed = True
 
     if changed:
@@ -377,3 +384,71 @@ def last_time(config_data: dict) -> str:
             last_date, last_text = end_date, end_text
 
     return last_text if last_text else "Never"
+
+# ---------------------------------------------------------------------------
+# Affichage des états (en glyph)
+# ---------------------------------------------------------------------------
+
+# --- États qui remplacent tout le reste (un seul glyphe) ---
+GLYPH_NOT_CONNECTED = ""
+GLYPH_BANNED = ""
+GLYPH_SPY = GLYPH_NOT_CONNECTED
+
+# --- Mute : un glyphe pour chaque variante ---
+GLYPH_MUTE_OFF = ""      # pas muet
+GLYPH_MUTE_SELF = ""     # muet (choix du joueur)
+GLYPH_MUTE_FORCE = ""    # muet forcé
+
+# --- Sourdine : un glyphe pour chaque variante ---
+GLYPH_DEAFEN_OFF = ""    # pas en sourdine
+GLYPH_DEAFEN_SELF = ""   # en sourdine (choix du joueur)
+GLYPH_DEAFEN_FORCE = ""  # sourdine forcée
+
+_MUTE_GLYPHS = {None: GLYPH_MUTE_OFF, "self": GLYPH_MUTE_SELF, "force": GLYPH_MUTE_FORCE}
+_DEAFEN_GLYPHS = {None: GLYPH_DEAFEN_OFF, "self": GLYPH_DEAFEN_SELF, "force": GLYPH_DEAFEN_FORCE}
+
+
+def _flag_active(config_data: dict, flag_key: str, end_key: str) -> bool:
+    """Comme _is_active du connecteur (gère l'expiration), mais en lecture seule."""
+    if config_data.get(flag_key) is not True:
+        return False
+    end = config_data.get(end_key)
+    if isinstance(end, (int, float)) and not isinstance(end, bool) and time.time() >= end:
+        return False   # état temporaire expiré
+    return True
+
+
+def get_glyph_state(config_data: dict) -> str:
+    # 1) Banni (testé avant "non connecté" : un banni n'est jamais envoyé à Inari)
+    if _flag_active(config_data, "is_ban", "end_ban"):
+        return GLYPH_BANNED
+
+    # 2) Non connecté à Inari
+    state = config_data.get("state") or {}
+    if not state.get("connected", False):
+        return GLYPH_NOT_CONNECTED
+
+    # 3) En train de surveiller un joueur (même condition que wsmanager)
+    staff = config_data.get("staff")
+    spy = staff.get("spy") if isinstance(staff, dict) else None
+    if isinstance(spy, dict) and spy.get("active") is True and spy.get("target"):
+        return GLYPH_SPY
+
+    # 4) Mute : l'état forcé l'emporte sur l'état choisi par le joueur
+    if _flag_active(config_data, "is_force_muted", "end_force_muted"):
+        mute_kind = "force"
+    elif state.get("mute") is True:
+        mute_kind = "self"
+    else:
+        mute_kind = None
+
+    # 5) Sourdine : même logique
+    if _flag_active(config_data, "is_force_deafened", "end_force_deafened"):
+        deafen_kind = "force"
+    elif state.get("deafen") is True:
+        deafen_kind = "self"
+    else:
+        deafen_kind = None
+
+    # 6) Deux glyphes collés : celui du mute, puis celui de la sourdine
+    return _MUTE_GLYPHS[mute_kind] + _DEAFEN_GLYPHS[deafen_kind]
