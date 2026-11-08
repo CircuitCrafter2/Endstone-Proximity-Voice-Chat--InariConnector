@@ -114,11 +114,11 @@ connect_url = "https://inari.yourserver.com/"
 | `[clients]` | `connect_url` | `https://inari.yourserver.com/` | Web page where players enter their pairing code. Also used to build the QR code link. |
 
 
-### Commands
+## Commands
 
 The main command is `/inari`. It also works with the aliases `/vocal` and `/voice`.
 
-#### Player commands
+### Player commands
 
 | Command | Description |
 | --- | --- |
@@ -128,13 +128,14 @@ The main command is `/inari`. It also works with the aliases `/vocal` and `/voic
 | `/inari mute` | Requests a self-mute / unmute (toggle). |
 | `/inari deafen` | Requests a self-deafen / undeafen (toggle). |
 
-#### Staff commands
+### Staff commands
 
 Staff commands are restricted to operators by default.
 
 | Command | Description |
 | --- | --- |
 | `/inari staff info <target>` | Shows the voice status of a player (mute, deafen, ban, live state). |
+| `/inari staff spy <target>` | Spying on what a player says and hears. |
 | `/inari staff mute <target>` | Force-mutes a player. Run it again to lift the mute. |
 | `/inari staff deafen <target>` | Force-deafens a player. Run it again to lift the deafen. |
 | `/inari staff ban <target>` | Bans a player from the voice chat. Run it again to unban. |
@@ -146,7 +147,7 @@ Staff commands are restricted to operators by default.
 
 > A player must have joined the server at least once to be targeted by a staff command.
 
-#### Other commands
+### Other commands
 
 | Command | Description |
 | --- | --- |
