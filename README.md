@@ -9,77 +9,85 @@ The plugin connects your server to an Inari instance over WebSocket, lets player
 
 ## Table of contents
 
+- [Commands](#commands)
+  - [Player commands](#player-commands)
+  - [Staff commands](#staff-commands)
+  - [Other commands](#other-commands)
+- [Permissions](#permissions)
+- [Plugin configuration](#plugin-configuration)
+  - [config.toml](#configtoml)
 - [Installation](#installation)
   - [Plugin installation](#plugin-installation)
   - [Resource pack installation](#resource-pack-installation)
   - [Inari installation](#inari-installation)
-- [Plugin configuration](#plugin-configuration)
-  - [config.toml](#configtoml)
-  - [Commands](#commands)
-  - [Permissions](#permissions)
+- [Updating](#updating)
+- [PlaceholderAPI extension](#placeholderapi-extension)
 - [Upcoming updates](#upcoming-updates)
 - [Acknowledgements](#acknowledgements)
 - [License](#license)
 
 ---
 
-## Installation
+## Commands
 
-### Plugin installation
+The main command is `/inari`. It also works with the aliases `/vocal` and `/voice`.
 
-**Requirements**
+### Player commands
 
-- An [Endstone](https://github.com/EndstoneMC/endstone) server (API version `0.11`)
-- Python `>= 3.10`
-- A running Inari instance (see [Inari installation](#inari-installation))
+| Command | Description |
+| --- | --- |
+| `/inari info` | Shows your voice profile: mute, deafen and ban status, plus your live voice state. |
+| `/inari gui` | Opens the Inari GUI with buttons to connect, mute and deafen. |
+| `/inari pair` | Opens a form with a QR code, the connection link, your pairing code and the channel name. **Do not share this information.** |
+| `/inari mute` | Requests a self-mute / unmute (toggle). |
+| `/inari deafen` | Requests a self-deafen / undeafen (toggle). |
 
-**Steps**
+### Staff commands
 
-1. Download the latest `endstone_inari-<version>-py3-none-any.whl` from [Releases](https://github.com/CircuitCrafter2/Endstone-Proximity-Voice-Chat--InariConnector/releases).
-2. Drop the `.whl` file into the `plugins/` folder of your Endstone server.
-3. Restart the server.
-4. The plugin generates its `config.toml` on first start. Fill it in (see [Plugin configuration](#plugin-configuration)) and restart the server again.
+Staff commands are restricted to operators by default.
 
-> The plugin will not start the voice connector until both `url` and `api_key` are set in `config.toml`. A message is logged in the console if one of them is missing.
+| Command | Description |
+| --- | --- |
+| `/inari staff info <target>` | Shows the voice status of a player (mute, deafen, ban, live state). |
+| `/inari staff spy <target>` | Listens to what a player says and hears. You are muted and moved to the target's position while spying. Run it on yourself to stop. The target must be online, and the spy ends automatically if the target leaves the server. |
+| `/inari staff mute <target>` | Force-mutes a player. Run it again to lift the mute. |
+| `/inari staff deafen <target>` | Force-deafens a player. Run it again to lift the deafen. |
+| `/inari staff ban <target>` | Bans a player from the voice chat. Run it again to unban. |
+| `/inari staff tempmute <target> <duration>` | Force-mutes a player for a limited time. |
+| `/inari staff tempdeafen <target> <duration>` | Force-deafens a player for a limited time. |
+| `/inari staff tempban <target> <duration>` | Bans a player from the voice chat for a limited time. |
 
-### Resource pack installation
+**Duration format:** a number followed by a unit: `s` (seconds), `m` (minutes), `h` (hours) or `d` (days). Examples: `30s`, `10m`, `2h`, `1d`.
 
-> [!IMPORTANT]
-> The resource pack is **required** for the plugin's forms to display correctly (for example the QR code shown by `/inari pair` and the centered text of the pairing form). Without it, those forms will not render as intended.
+> A player must have joined the server at least once to be targeted by a staff command.
 
-**Steps**
+### Other commands
 
-1. Get the resource pack: `InariRessourcePack` (or the ready-to-use `InnariConnectorPack.mcpack` file).
-2. Copy the `InariRessourcePack` folder into the `resource_packs/` folder of your server.
-3. Enable it for your world by adding it to your world's `world_resource_packs.json` (in `worlds/<your world>/`):
+| Command | Description |
+| --- | --- |
+| `/test` | Simple command to check that the plugin is loaded. Operators only. |
 
-   ```json
-   [
-     {
-       "pack_id": "e2eb5209-8e47-44dc-b68e-f9b020d4fffb",
-       "version": [1, 0, 0]
-     }
-   ]
-   ```
+---
 
+## Permissions
 
-4. Force players to download it by adding the following line to your `server.properties`:
-
-   ```properties
-   texturepack-required=true
-   ```
-
-   This makes the server require the resource pack, so every player gets the correct forms.
-
-5. Restart the server.
-
-### Inari installation
-
-Inari itself (the voice server the plugin connects to) has its own installation guide:
-
-👉 **https://inari.thedrewen.com/guides/installation/**
-
-Once Inari is installed, you will need its WebSocket URL and an API key to fill in the plugin's `config.toml`.
+| Permission | Default | Description |
+| --- | --- | --- |
+| `inari.command.inari` | everyone | Use the `/inari` command. |
+| `inari.command.public.info` | everyone | Use `/inari info`. |
+| `inari.command.public.gui` | everyone | Use `/inari gui`. |
+| `inari.command.public.pair` | everyone | Use `/inari pair`. |
+| `inari.command.public.mute` | everyone | Use `/inari mute`. |
+| `inari.command.public.deafen` | everyone | Use `/inari deafen`. |
+| `inari.command.staff` | op | Use `/inari staff`. |
+| `inari.command.staff.spy` | op | Use `/inari staff spy`. |
+| `inari.command.staff.mute` | op | Use `/inari staff mute`. |
+| `inari.command.staff.deafen` | op | Use `/inari staff deafen`. |
+| `inari.command.staff.ban` | op | Use `/inari staff ban`. |
+| `inari.command.staff.tempmute` | op | Use `/inari staff tempmute`. |
+| `inari.command.staff.tempdeafen` | op | Use `/inari staff tempdeafen`. |
+| `inari.command.staff.tempban` | op | Use `/inari staff tempban`. |
+| `inari.command.test` | op | Use `/test`. |
 
 ---
 
@@ -113,66 +121,136 @@ connect_url = "https://inari.yourserver.com/"
 | `[clients]` | `code_length` | `8` | Length of the pairing code generated for each player. Minimum is `6` (smaller values are raised to 6). |
 | `[clients]` | `connect_url` | `https://inari.yourserver.com/` | Web page where players enter their pairing code. Also used to build the QR code link. |
 
+---
 
-## Commands
+## Installation
 
-The main command is `/inari`. It also works with the aliases `/vocal` and `/voice`.
+### Plugin installation
 
-### Player commands
+**Requirements**
 
-| Command | Description |
+- An [Endstone](https://github.com/EndstoneMC/endstone) server (API version `0.11`)
+- Python `>= 3.10`
+- A running Inari instance (see [Inari installation](#inari-installation))
+- *Optional:* a PlaceholderAPI plugin for Endstone, to use the plugin's placeholder (see [PlaceholderAPI extension](#placeholderapi-extension))
+
+**Steps**
+
+1. Download the latest `endstone_inari-<version>-py3-none-any.whl` from [Releases](https://github.com/CircuitCrafter2/Endstone-Proximity-Voice-Chat--InariConnector/releases).
+2. Drop the `.whl` file into the `plugins/` folder of your Endstone server.
+3. Restart the server.
+4. The plugin generates its `config.toml` on first start. Fill it in (see [Plugin configuration](#plugin-configuration)) and restart the server again.
+
+> The plugin will not start the voice connector until both `url` and `api_key` are set in `config.toml`. A message is logged in the console if one of them is missing.
+
+### Resource pack installation
+
+> [!IMPORTANT]
+> The resource pack is **required** for the plugin's forms to display correctly (for example the QR code shown by `/inari pair` and the centered text of the pairing form). It also contains the voice status glyphs used by the [PlaceholderAPI extension](#placeholderapi-extension). Without it, those forms and glyphs will not render as intended.
+
+**Steps**
+
+1. Get the resource pack: `InariRessourcePack` (or the ready-to-use `InariConnectorPack.mcpack` file).
+2. Copy the `InariRessourcePack` folder into the `resource_packs/` folder of your server.
+3. Enable it for your world by adding it to your world's `world_resource_packs.json` (in `worlds/<your world>/`):
+
+   ```json
+   [
+     {
+       "pack_id": "e2eb5209-8e47-44dc-b68e-f9b020d4fffb",
+       "version": [1, 1, 0]
+     }
+   ]
+   ```
+
+   The `version` must match the `version` of the pack's `manifest.json`.
+
+4. Force players to download it by adding the following line to your `server.properties`:
+
+   ```properties
+   texturepack-required=true
+   ```
+
+   This makes the server require the resource pack, so every player gets the correct forms.
+
+5. Restart the server.
+
+### Inari installation
+
+Inari itself (the voice server the plugin connects to) has its own installation guide:
+
+👉 **https://inari.thedrewen.com/guides/installation/**
+
+Once Inari is installed, you will need its WebSocket URL and an API key to fill in the plugin's `config.toml`.
+
+---
+
+## Updating
+
+At startup, the plugin checks the latest GitHub release and logs a warning in the console, with the download link, when a newer version is available. Only stable releases are reported (pre-releases are not).
+
+**Steps**
+
+1. **Back up** the `plugins/inari/` folder (it contains your `config.toml` and the players' data).
+2. **Stop the server.**
+3. Download the new `endstone_inari-<version>-py3-none-any.whl` from [Releases](https://github.com/CircuitCrafter2/Endstone-Proximity-Voice-Chat--InariConnector/releases).
+4. In `plugins/`, **delete the old `.whl`** and put the new one in its place. Never keep two versions of the plugin at the same time.
+5. **Start the server.**
+
+**What is kept**
+
+- Your `config.toml` is **not** overwritten. If the release notes mention a new option, add it manually (compare with [config.toml](#configtoml)); a missing option falls back to its default value.
+- Players' data is kept. Missing fields are added automatically when a player joins.
+
+**If the resource pack changed**
+
+When a release comes with a new version of the resource pack:
+
+1. Replace the `InariRessourcePack` folder in `resource_packs/` (or use the new `.mcpack`).
+2. Update the `version` in `world_resource_packs.json` so it matches the `version` of the new `manifest.json`.
+3. Restart the server. Players will download the new version when they join.
+
+---
+
+## PlaceholderAPI extension
+
+Inari Connector provides an optional expansion for PlaceholderAPI. It lets other plugins display a player's voice status as in-game glyphs.
+
+The expansion is registered automatically at startup when PlaceholderAPI is installed and active. Otherwise the plugin works normally, and a message in the console tells you that placeholders are disabled.
+
+**Requirements**
+
+- A PlaceholderAPI plugin for Endstone installed on the server.
+- The [resource pack](#resource-pack-installation), which contains the glyphs.
+
+### Placeholders
+
+| Placeholder | Description |
 | --- | --- |
-| `/inari info` | Shows your voice profile: mute, deafen and ban status, plus your live voice state. |
-| `/inari gui` | Opens the Inari GUI with buttons to connect, mute and deafen. |
-| `/inari pair` | Opens a form with a QR code, the connection link, your pairing code and the channel name. **Do not share this information.** |
-| `/inari mute` | Requests a self-mute / unmute (toggle). |
-| `/inari deafen` | Requests a self-deafen / undeafen (toggle). |
+| `{inari:global_status}` | The voice status of the player, as one or two glyphs. |
 
-### Staff commands
+### Status shown
 
-Staff commands are restricted to operators by default.
+The status is chosen in this order, the first match wins:
 
-| Command | Description |
+1. **Banned** from the voice chat.
+2. **Not connected** to Inari.
+3. **Spying** on another player.
+4. Otherwise, **two glyphs side by side**: the mute icon followed by the deafen icon. Each one can be *off*, *on* (chosen by the player) or *forced* (by staff). A forced state takes priority over the player's own choice.
+
+| State | Glyph |
 | --- | --- |
-| `/inari staff info <target>` | Shows the voice status of a player (mute, deafen, ban, live state). |
-| `/inari staff spy <target>` | Spying on what a player says and hears. |
-| `/inari staff mute <target>` | Force-mutes a player. Run it again to lift the mute. |
-| `/inari staff deafen <target>` | Force-deafens a player. Run it again to lift the deafen. |
-| `/inari staff ban <target>` | Bans a player from the voice chat. Run it again to unban. |
-| `/inari staff tempmute <target> <duration>` | Force-mutes a player for a limited time. |
-| `/inari staff tempdeafen <target> <duration>` | Force-deafens a player for a limited time. |
-| `/inari staff tempban <target> <duration>` | Bans a player from the voice chat for a limited time. |
+| Not connected | `U+E921` |
+| Banned | `U+E922` |
+| Spying | `U+E921` (same glyph as *not connected*) |
+| Mute: off / on / forced | `U+E900` / `U+E901` / `U+E902` |
+| Deafen: off / on / forced | `U+E910` / `U+E911` / `U+E912` |
 
-**Duration format:** a number followed by a unit: `s` (seconds), `m` (minutes), `h` (hours) or `d` (days). Examples: `30s`, `10m`, `2h`, `1d`.
+> A banned player is shown as banned even when not connected. A player is shown as *not connected* about 15 seconds after leaving Inari.
 
-> A player must have joined the server at least once to be targeted by a staff command.
+### Customizing the glyphs
 
-### Other commands
-
-| Command | Description |
-| --- | --- |
-| `/test` | Simple command to check that the plugin is loaded. Operators only. |
-
-### Permissions
-
-| Permission | Default | Description |
-| --- | --- | --- |
-| `inari.command.inari` | everyone | Use the `/inari` command. |
-| `inari.command.public.info` | everyone | Use `/inari info`. |
-| `inari.command.public.gui` | everyone | Use `/inari gui`. |
-| `inari.command.public.pair` | everyone | Use `/inari pair`. |
-| `inari.command.public.mute` | everyone | Use `/inari mute`. |
-| `inari.command.public.deafen` | everyone | Use `/inari deafen`. |
-| `inari.command.staff` | op | Use `/inari staff`. |
-| `inari.command.staff.mute` | op | Use `/inari staff mute`. |
-| `inari.command.staff.deafen` | op | Use `/inari staff deafen`. |
-| `inari.command.staff.ban` | op | Use `/inari staff ban`. |
-| `inari.command.staff.tempmute` | op | Use `/inari staff tempmute`. |
-| `inari.command.staff.tempdeafen` | op | Use `/inari staff tempdeafen`. |
-| `inari.command.staff.tempban` | op | Use `/inari staff tempban`. |
-| `inari.command.test` | op | Use `/test`. |
-
-
+The glyphs are stored in `font/glyph_E9.png` of the resource pack (a 16×16 grid covering `U+E900` to `U+E9FF`). Edit that image to change how they look, then increase the pack version and follow the [resource pack update steps](#updating).
 
 ---
 
@@ -182,9 +260,9 @@ Staff commands are restricted to operators by default.
 | --- | --- | --- |
 | Statistical | Add a statistics system | :white_check_mark: Finish |
 | Update | Add a system that warns if the plugin is no longer up to date. | :white_check_mark: Finish |
-| Spy | Add a system that allows staff to eavesdrop on conversations without being nearby | :test_tube: In the latest Release Candidate |
+| Spy | Add a system that allows staff to eavesdrop on conversations without being nearby | :white_check_mark: Finish |
 | API | Add an API for developers | :calendar: Planned |
-| Logos | Add in-game logos to display voice status | :calendar: Planned |
+| Logos | Add in-game logos to display voice status | :test_tube: In the latest Release Candidate |
 
 ---
 
