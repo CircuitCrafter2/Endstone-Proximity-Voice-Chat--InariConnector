@@ -181,7 +181,7 @@ Staff commands are restricted to operators by default.
 | --- | --- | --- |
 | Statistical | Add a statistics system | :white_check_mark: Finish |
 | Update | Add a system that warns if the plugin is no longer up to date. | :white_check_mark: Finish |
-| Spy | Add a system that allows staff to eavesdrop on conversations without being nearby | :factory: Work in progress |
+| Spy | Add a system that allows staff to eavesdrop on conversations without being nearby | :test_tube: In the latest Release Candidate |
 | API | Add an API for developers | :calendar: Planned |
 | Logos | Add in-game logos to display voice status | :calendar: Planned |
 
