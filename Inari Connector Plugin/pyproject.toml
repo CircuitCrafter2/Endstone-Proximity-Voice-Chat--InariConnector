@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "endstone-inari"
-version = "0.3.0rc1"
+version = "0.3.0"
 dependencies = ["websockets>=12", "requests", "packaging"]
 authors = [
     { name = "CircuitCrafter", email = "circuitcrafter2@outlook.com" },
