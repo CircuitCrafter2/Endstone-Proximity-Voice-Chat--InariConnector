@@ -16,6 +16,7 @@ The plugin connects your server to an Inari instance over WebSocket, lets player
 - [Permissions](#permissions)
 - [Plugin configuration](#plugin-configuration)
   - [config.toml](#configtoml)
+  - [Custom name format](#custom-name-format)
 - [Installation](#installation)
   - [Plugin installation](#plugin-installation)
   - [Resource pack installation](#resource-pack-installation)
@@ -110,6 +111,16 @@ channel = "default"
 [clients]
 code_length = 8
 connect_url = "https://inari.yourserver.com/"
+
+[display]
+# true : replaces the name shown above players' heads with name_format below.
+enabled = false
+# Built-in variables: {name} (real name), {glyph} (voice status glyphs), {group}.
+# PlaceholderAPI placeholders also work, for example {inari:global_status}.
+# Colour codes can be written directly with the section sign.
+name_format = "{glyph} {name}"
+# How often the name is refreshed, in ticks (20 ticks = 1 second). Minimum 5.
+refresh_ticks = 20
 ```
 
 | Section | Key | Default | Description |
@@ -120,6 +131,43 @@ connect_url = "https://inari.yourserver.com/"
 | `[connection]` | `channel` | `"default"` | Voice channel used by this server. |
 | `[clients]` | `code_length` | `8` | Length of the pairing code generated for each player. Minimum is `6` (smaller values are raised to 6). |
 | `[clients]` | `connect_url` | `https://inari.yourserver.com/` | Web page where players enter their pairing code. Also used to build the QR code link. |
+| `[display]` | `enabled` | `false` | Turns the [custom name format](#custom-name-format) on. |
+| `[display]` | `name_format` | `"{glyph} {name}"` | Format of the name shown above players' heads. |
+| `[display]` | `refresh_ticks` | `20` | How often names are refreshed, in ticks (20 ticks = 1 second). Minimum is `5`. |
+
+### Custom name format
+
+When `[display] enabled = true`, the plugin replaces the name shown **above each player's head** with the text defined by `name_format`. The player's real name is never changed: commands, the player's data and the name sent to Inari keep using it.
+
+**Built-in variables**
+
+| Variable | Replaced by |
+| --- | --- |
+| `{name}` | The player's real name. |
+| `{glyph}` | The voice status glyphs (see [PlaceholderAPI extension](#placeholderapi-extension)). |
+| `{group}` | The player's group (empty when none). |
+
+**PlaceholderAPI placeholders**
+
+Any placeholder written as `{identifier:params}` is resolved by PlaceholderAPI before the built-in variables, including the plugin's own `{inari:global_status}` and the placeholders of other plugins. PlaceholderAPI is optional: when it is not installed, these placeholders are left as written and a warning is logged once.
+
+**Examples**
+
+```toml
+name_format = "{glyph} {name}"                # voice glyphs, then the name
+name_format = "[{group}] {name}"              # group before the name
+name_format = "§7{example:placeholder} §r{name}"   # PlaceholderAPI + colour codes
+```
+
+**Good to know**
+
+- A variable that does not exist (for example a typo like `{nmae}`) is left as written, so it is easy to spot.
+- The result is never empty: if it would be, the player's real name is used.
+- Colour codes use the section sign `§` directly in `name_format`.
+- The glyphs need the [resource pack](#resource-pack-installation); without it players see squares.
+- Names are refreshed every `refresh_ticks` ticks and applied as soon as a player joins. They are restored when the plugin is disabled.
+- Only the name above the head is changed, not the chat or the player list.
+- The format is read at startup: restart the server after changing it.
 
 ---
 
@@ -247,6 +295,10 @@ The status is chosen in this order, the first match wins:
 | Deafen: off / on / forced | `U+E910` / `U+E911` / `U+E912` |
 
 > A banned player is shown as banned even when not connected. A player is shown as *not connected* about 15 seconds after leaving Inari.
+
+### Using it in the name format
+
+Placeholders are also resolved in the [custom name format](#custom-name-format): `name_format = "{inari:global_status} {name}"` shows the voice status in front of each player's name. The built-in `{glyph}` variable gives the same result without PlaceholderAPI.
 
 ### Customizing the glyphs
 
