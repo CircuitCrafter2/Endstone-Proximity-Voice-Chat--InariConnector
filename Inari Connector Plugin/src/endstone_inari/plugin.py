@@ -28,6 +28,7 @@ from .commands.staff import tempdeafen as staff_tempdeafen
 from .commands.staff import tempmute as staff_tempmute
 from .commands.staff import spy as staff_spy
 from .listener import InariListener
+from .nametag import NameTagManager
 from .wsmanager import InariConnector
 
 # Actions de /inari <action> : execute(sender, args, data_path)
@@ -178,6 +179,14 @@ class InariPlugin(Plugin):
         os.makedirs(self.data_path, exist_ok=True)
         self.logger.info(f"Player storage folder initialized to: {self.data_path}")
 
+        # Pseudo affiché (name tag) : fonctionnalité facultative, désactivée par défaut.
+        # Créé avant le listener et avant tout retour anticipé : il ne dépend pas d'Inari.
+        self.nametag = NameTagManager.from_config(self.config, self.server, self.logger, self.data_path)
+        if self.nametag is not None:
+            self.server.scheduler.run_task(
+                self, self.nametag.update_all, delay=0, period=self.nametag.refresh_ticks
+            )
+
         self.register_events(InariListener(self))
 
         # Connection settings, read from config.toml
@@ -284,6 +293,8 @@ class InariPlugin(Plugin):
             self.logger.error(f"Error checking for update: {e}")
 
     def on_disable(self) -> None:
+        if getattr(self, "nametag", None) is not None:
+            self.nametag.restore_all()
         staff_spy.stop_all(self.data_path)
         if getattr(self, "connector", None) is not None:
             self.connector.stop()

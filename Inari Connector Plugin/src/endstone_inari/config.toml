@@ -10,3 +10,13 @@ channel = "default"
 [clients]
 code_length = 8
 connect_url = "https://inari.yourserver.com/"
+
+[display]
+# true : replaces the name shown above players' heads with name_format below.
+enabled = false
+# Built-in variables: {name} (real name), {glyph} (voice status glyphs), {group}.
+# PlaceholderAPI placeholders also work, for example {inari:global_status}.
+# Colour codes can be written directly with the section sign.
+name_format = "{glyph} {name}"
+# How often the name is refreshed, in ticks (20 ticks = 1 second). Minimum 5.
+refresh_ticks = 20

@@ -20,8 +20,16 @@ class InariListener:
         """Crée / met à jour le fichier de données du joueur qui se connecte."""
         init_player_file(self._plugin.data_path, event.player)
 
+        # Pseudo affiché : appliqué dès la connexion (puis rafraîchi par le scheduler)
+        nametag = getattr(self._plugin, "nametag", None)
+        if nametag is not None:
+            nametag.update(event.player)
+
     @event_handler
     def on_player_quit(self, event: PlayerQuitEvent) -> None:
         """Libère le cache mémoire du joueur qui quitte le serveur."""
         staff_spy.handle_quit(self._plugin.data_path, self._plugin.server, event.player)
+        nametag = getattr(self._plugin, "nametag", None)
+        if nametag is not None:
+            nametag.forget(event.player)
         forget_player(event.player)
